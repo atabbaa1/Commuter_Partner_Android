@@ -303,10 +303,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
                         }
                     }
                     override fun onStartTrackingTouch(seekBar: SeekBar?) {
-                        // TODO("Not yet implemented")
                     }
                     override fun onStopTrackingTouch(seekBar: SeekBar?) {
-                        // TODO("Not yet implemented")
                     }
                 })
                 return false // Maintain default behavior when clicked (show info window and pan to center)
