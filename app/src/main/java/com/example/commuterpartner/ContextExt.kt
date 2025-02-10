@@ -1,0 +1,18 @@
+// This file contains a helper function used in DefaultLocationClient.kt
+
+package com.example.commuterpartner
+
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
+
+fun Context.hasLocationPermission(): Boolean {
+    // Return whether or not location permission has been granted
+    return ContextCompat.checkSelfPermission(
+        this, Manifest.permission.ACCESS_COARSE_LOCATION
+    ) == PackageManager.PERMISSION_GRANTED &&
+            ContextCompat.checkSelfPermission(
+        this, Manifest.permission.ACCESS_FINE_LOCATION
+    ) == PackageManager.PERMISSION_GRANTED
+}

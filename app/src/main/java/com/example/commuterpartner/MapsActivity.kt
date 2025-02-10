@@ -271,11 +271,24 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
              *     Optionally, stop tracking the user
              * }
              */
+            // To start tracking, we need to send an Intent to our LocationService
+            // to trigger the onStartCommand()
+            Intent(applicationContext, LocationService::class.java).apply {
+                action = LocationService.ACTION_START
+                startService(this)
+            }
         } else if (targetAcquired) {
             targetAcquired = false
             targetAcquiredBtn.text = "Notify Me Upon Arrival"
             circleRadSeekBar.visibility = View.VISIBLE
             // Optionally, stop tracking the user
+            // To stop tracking, we need to send an Intent to our LocationService
+            // to trigger the onStartCommand()
+            Intent(applicationContext, LocationService::class.java).apply {
+                action = LocationService.ACTION_STOP
+                startService(this)
+            }
+
         }
     }
 
