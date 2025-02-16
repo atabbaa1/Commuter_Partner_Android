@@ -9,6 +9,7 @@ import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.Priority
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -19,7 +20,7 @@ class DefaultLocationClient(
     private val client: FusedLocationProviderClient): LocationClient {
 
     @SuppressLint("MissingPermission")
-        override fun getLocationUpdates(interval: Long): Flow<Location> {
+    override fun getLocationUpdates(interval: Long): Flow<Location> {
         return callbackFlow {
             if (!context.hasLocationPermission()) {
                 throw LocationClient.locationException("Location Permission Denied")
@@ -32,7 +33,9 @@ class DefaultLocationClient(
                 throw LocationClient.locationException("GPS is disabled")
             }
             // Now, actually fetch the location by creating a LocationRequest
-            val request = LocationRequest.create().setInterval(interval) // val request = LocationRequest.Builder(interval)
+            val request = LocationRequest.Builder(interval) // val request = LocationRequest.create().setInterval(interval)
+                .setPriority(Priority.PRIORITY_BALANCED_POWER_ACCURACY)
+                .build()
             val locationCallback = object : LocationCallback() {
                 // The below function is called whenever the FusedLocationProviderClient fetches a new location
                 override fun onLocationResult(p0: LocationResult) {

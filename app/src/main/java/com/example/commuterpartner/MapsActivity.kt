@@ -22,12 +22,15 @@ import androidx.core.app.ActivityCompat.OnRequestPermissionsResultCallback
 import androidx.core.content.ContextCompat
 
 import android.app.AlertDialog
+import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.os.Build
 import android.view.View
 import android.widget.Button
 import android.widget.SeekBar
+import androidx.core.app.NotificationCompat
 import androidx.fragment.app.FragmentManager
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.maps.GoogleMap.OnMapClickListener
@@ -85,7 +88,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
         mMap = googleMap
         // Add a marker in Sydney and move the camera
         val sydney = LatLng(-34.0, 151.0)
-        mMap.addMarker(MarkerOptions().position(sydney).title("Marker in Sydney"))
+        val sydneyMarker = mMap.addMarker(MarkerOptions().position(sydney).title("Marker in Sydney"))
+        sydneyMarker?.tag = DEFAULT_RADIUS
         mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney))
         mMap.isTrafficEnabled = false
         mMap.mapType = GoogleMap.MAP_TYPE_TERRAIN
@@ -108,11 +112,34 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
         circleRadSeekBar = findViewById(R.id.circle_rad_seek_bar)
         circleRadSeekBar.min = MIN_RADIUS.toInt()
         circleRadSeekBar.max = MAX_RADIUS.toInt()
+
+        // Basic Notification Test
+        /*
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val notification = NotificationCompat.Builder(this, LocationService.NOTIFICATION_CHANNEL_ID)
+            .setContentTitle("Test Notification")
+            .setContentText("This is a test")
+            .setSmallIcon(R.drawable.ic_launcher_background)
+            .build()
+
+        notificationManager.notify(999, notification)
+         */
+
+        // Requesting permission to send notifications
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // Android 13+
+            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this,
+                    arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1001)
+            }
+        }
     }
 
     override fun onMapLongClick(p0: LatLng) {
-        val newMarker = mMap.addMarker(MarkerOptions().position(p0).title(p0.latitude.toString() + ", " + p0.longitude.toString()))
-        newMarker?.tag = DEFAULT_RADIUS // .tag NEEDS to stay of type Double. DO NOT make it an Int!!!
+        if (!targetAcquired) {
+            val newMarker = mMap.addMarker(MarkerOptions().position(p0).title(p0.latitude.toString() + ", " + p0.longitude.toString()))
+            newMarker?.tag = DEFAULT_RADIUS // .tag NEEDS to stay of type Double. DO NOT make it an Int!!!
+        }
     }
 
     override fun onMapClick(p0: LatLng) {
@@ -135,14 +162,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
     private fun enableMyLocation() {
 
         // 1. Check if permissions are granted, if so, enable the my location layer
-        if (ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
-        ) {
+        if (this.hasLocationPermission()) {
             mMap.isMyLocationEnabled = true
             return
         }
@@ -275,7 +295,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
             // to trigger the onStartCommand()
             Intent(applicationContext, LocationService::class.java).apply {
                 action = LocationService.ACTION_START
-                startService(this)
+                startForegroundService(this)
             }
         } else if (targetAcquired) {
             targetAcquired = false
@@ -286,7 +306,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
             // to trigger the onStartCommand()
             Intent(applicationContext, LocationService::class.java).apply {
                 action = LocationService.ACTION_STOP
-                startService(this)
+                startForegroundService(this)
             }
 
         }

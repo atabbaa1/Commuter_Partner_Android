@@ -18,7 +18,6 @@ import kotlinx.coroutines.flow.onEach
 class LocationService: Service() {
 
     private val INTERVAL: Long = 10000L // time between location updates in ms
-    private val NOTIFICATION_CHANNEL_ID: String = "location"
     private val FOREGROUND_ID: Int = 1
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private lateinit var locationClient: LocationClient
@@ -46,14 +45,14 @@ class LocationService: Service() {
         return super.onStartCommand(intent, flags, startId)
     }
 
-    val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-
     private fun start() {
         val notification = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
             .setContentTitle("Tracking location...")
             .setContentText("Location: null")
             .setSmallIcon(R.drawable.ic_launcher_background)
             .setOngoing(true)
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        startForeground(FOREGROUND_ID, notification.build())
         locationClient.getLocationUpdates(INTERVAL)
             .catch { e -> e.printStackTrace() }
             .onEach { location ->
@@ -63,7 +62,6 @@ class LocationService: Service() {
                 notificationManager.notify(FOREGROUND_ID, updatedNotification.build())
             }
             .launchIn(serviceScope)
-        startForeground(FOREGROUND_ID, notification.build())
     }
 
     private fun stop() {
@@ -85,5 +83,6 @@ class LocationService: Service() {
     companion object {
         const val ACTION_START = "ACTION_START"
         const val ACTION_STOP = "ACTION_STOP"
+        const val NOTIFICATION_CHANNEL_ID = "location"
     }
 }

@@ -9,13 +9,12 @@ import android.content.Context
 import android.os.Build
 
 class LocationApp: Application() {
-    private val NOTIFICATION_CHANNEL_ID: String = "location"
 
     override fun onCreate() {
         super.onCreate()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
-                NOTIFICATION_CHANNEL_ID,
+                LocationService.NOTIFICATION_CHANNEL_ID,
                 "Location",
                 NotificationManager.IMPORTANCE_LOW
             )
