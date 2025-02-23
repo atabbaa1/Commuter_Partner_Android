@@ -73,4 +73,8 @@ dependencies {
     implementation("com.google.android.gms:play-services-location:21.3.0")
     // For viewModelScope() function, simplifying launching coroutines from the ViewModel
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
+    // For by activityViewModels()
+    implementation ("androidx.activity:activity-ktx:1.8.0")
+    implementation ("androidx.fragment:fragment-ktx:1.8.6")
+
 }

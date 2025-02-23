@@ -5,6 +5,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.ViewModelProvider
 import com.google.android.gms.location.LocationServices
@@ -15,6 +16,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlin.random.Random
 
 class LocationService: Service() {
 
@@ -64,12 +66,13 @@ class LocationService: Service() {
         locationClient.getLocationUpdates(INTERVAL)
             .catch { e -> e.printStackTrace() }
             .onEach { location ->
-                val lat = location .latitude
-                val long = location .longitude
+                // TODO: Fix the random later!
+                val lat = location .latitude + Random.nextDouble(0.0, 1.0)
+                val long = location .longitude + Random.nextDouble(0.0, 1.0)
                 val updatedNotification = notification.setContentText("Location: ($long, $lat)")
                 notificationManager.notify(FOREGROUND_ID, updatedNotification.build())
-                // Update the LocationViewModel
-                locationViewModel.updateLocation(lat, long)
+                // Update the LocationRepository
+                LocationRepository.updateLocation(lat, long)
             }
             .launchIn(serviceScope)
     }

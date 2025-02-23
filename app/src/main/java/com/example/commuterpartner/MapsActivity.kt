@@ -34,7 +34,10 @@ import android.widget.SeekBar
 import androidx.activity.viewModels
 import androidx.core.app.NotificationCompat
 import androidx.fragment.app.FragmentManager
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.maps.GoogleMap.OnMapClickListener
 import com.google.android.gms.maps.GoogleMap.OnMapLongClickListener
@@ -42,6 +45,8 @@ import com.google.android.gms.maps.GoogleMap.OnMarkerClickListener
 import com.google.android.gms.maps.model.Circle
 import com.google.android.gms.maps.model.CircleOptions
 import com.google.android.gms.maps.model.Marker
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 // In the following function header ':' stands for extends and ',' stands for implements
@@ -62,7 +67,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
     private lateinit var circle: Circle // Declaring circle as type Circle. No default value and can never be null. Use if (::circle.isInitialized)
     private var targetAcquired = false // This reveals whether a Marker has been designated for notification
     private lateinit var circleRadSeekBar: SeekBar
-    private val locationViewModel: LocationViewModel by viewModels()
+    // private lateinit var locationViewModel: LocationViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -83,28 +88,33 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
             .findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync(this) // Calling this method sets the callback on the fragment
 
-        lifecycleScope.launch {
-            locationViewModel.locationFlow.collect { (lat, long) ->
-                /**
-                 * The code which tracks the user's location and sends notifications
-                 * once the user has entered the circle radius
-                 */
-                val user_dist = 1000; // TODO Fix this calculation later !!!
-                Log.d("MapsActivity", "User is at: ($lat, $long)")
-                if (user_dist <= circle.radius) { // If the user entered the circle
-                    // Notify them
-                    Log.e("MapsActivity", "User is now inside the circle!")
-                    targetAcquired = false
-                    targetAcquiredBtn.text = "Notify Me Upon Arrival"
-                    activeMarker = null
-                    circle.isVisible = false
-                    circleRadSeekBar.visibility = View.INVISIBLE
-                    // Stop tracking the user
-                    // To stop tracking, we need to send an Intent to our LocationService
-                    // to trigger the onStartCommand()
-                    Intent(applicationContext, LocationService::class.java).apply {
-                        action = LocationService.ACTION_STOP
-                        startForegroundService(this)
+        // locationViewModel = ViewModelProvider(this)[LocationViewModel::class.java]
+        lifecycleScope.launch (Dispatchers.Main) {
+            lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) { // keeps collecting even when app goes background <-> foreground
+                // LocationRepository is the object containing the user location.
+                // locationFlow is the name of the Flow in LocationRepository
+                LocationRepository.locationFlow.collect { (lat, long) ->
+                    /**
+                     * The code which tracks the user's location and sends notifications
+                     * once the user has entered the circle radius
+                     */
+                    Log.d("MapsActivity", "User is at: ($lat, $long)")
+                    val user_dist = 1000 // TODO Fix this calculation later !!!
+                    if (::circle.isInitialized && user_dist <= circle.radius) { // If the user entered the circle
+                        // Notify them
+                        Log.d("MapsActivity", "User is now inside the circle!")
+                        targetAcquired = false
+                        targetAcquiredBtn.text = "Notify Me Upon Arrival"
+                        activeMarker = null
+                        circle.isVisible = false
+                        circleRadSeekBar.visibility = View.INVISIBLE
+                        // Stop tracking the user
+                        // To stop tracking, we need to send an Intent to our LocationService
+                        // to trigger the onStartCommand()
+                        Intent(applicationContext, LocationService::class.java).apply {
+                            action = LocationService.ACTION_STOP
+                            startForegroundService(this)
+                        }
                     }
                 }
             }
@@ -314,7 +324,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
         } else if (!targetAcquired) {
             targetAcquired = true
             targetAcquiredBtn.text = "Cancel Notification/ Designate a Different Marker"
-            // circleRadSeekBar.visibility = View.INVISIBLE // COMMENT THIS OUT WHEN I WANT TO TEST NOTIFICATION UPON USER ENTERING CIRCLE
+            // circleRadSeekBar.visibility = View.INVISIBLE // TODO: COMMENT THIS OUT WHEN I WANT TO TEST NOTIFICATION UPON USER ENTERING CIRCLE
             // To start tracking, we need to send an Intent to our LocationService
             // to trigger the onStartCommand()
             Intent(applicationContext, LocationService::class.java).apply {
@@ -374,6 +384,12 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
             }
         }
     }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        Log.d("MapsActivity", "MapsActivity is being destroyed!")
+    }
+
 
 
     companion object {
