@@ -71,4 +71,6 @@ dependencies {
     implementation("com.google.maps.android:android-maps-utils:1.1.0")
     // Location
     implementation("com.google.android.gms:play-services-location:21.3.0")
+    // For viewModelScope() function, simplifying launching coroutines from the ViewModel
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
 }

@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import androidx.lifecycle.ViewModelProvider
 import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -19,8 +20,10 @@ class LocationService: Service() {
 
     private val INTERVAL: Long = 10000L // time between location updates in ms
     private val FOREGROUND_ID: Int = 1
+    // A coroutine is a concurrency design pattern which simplifies code that runs asynchronously
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private lateinit var locationClient: LocationClient
+    private lateinit var locationViewModel: LocationViewModel
 
     override fun onBind(p0: Intent?): IBinder? {
         return null
@@ -46,6 +49,7 @@ class LocationService: Service() {
     }
 
     private fun start() {
+        // Eventually, remove the changing notification *****************************************************
         val notification = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
             .setContentTitle("Tracking location...")
             .setContentText("Location: null")
@@ -53,13 +57,19 @@ class LocationService: Service() {
             .setOngoing(true)
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         startForeground(FOREGROUND_ID, notification.build())
+        // Initializing LocationView material
+        val appContext = applicationContext as LocationApp // Ensure LocationApp extends Application and implements ViewModelStoreOwner
+        val locationViewModel = ViewModelProvider(appContext)
+            .get(LocationViewModel::class.java)
         locationClient.getLocationUpdates(INTERVAL)
             .catch { e -> e.printStackTrace() }
             .onEach { location ->
-                val lat = location .latitude.toString().takeLast(3)
-                val long = location .longitude.toString().takeLast(3)
+                val lat = location .latitude
+                val long = location .longitude
                 val updatedNotification = notification.setContentText("Location: ($long, $lat)")
                 notificationManager.notify(FOREGROUND_ID, updatedNotification.build())
+                // Update the LocationViewModel
+                locationViewModel.updateLocation(lat, long)
             }
             .launchIn(serviceScope)
     }

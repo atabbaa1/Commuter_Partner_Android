@@ -7,8 +7,14 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.os.Build
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
 
-class LocationApp: Application() {
+class LocationApp: Application(), ViewModelStoreOwner {
+
+    private val store = ViewModelStore()
+    override val viewModelStore: ViewModelStore
+        get() = store
 
     override fun onCreate() {
         super.onCreate()
