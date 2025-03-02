@@ -27,6 +27,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.os.Build
+import android.provider.Settings
 import android.util.Log
 import android.view.View
 import android.widget.Button
@@ -67,7 +68,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
     private lateinit var circle: Circle // Declaring circle as type Circle. No default value and can never be null. Use if (::circle.isInitialized)
     private var targetAcquired = false // This reveals whether a Marker has been designated for notification
     private lateinit var circleRadSeekBar: SeekBar
-    // private lateinit var locationViewModel: LocationViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -88,7 +88,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
             .findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync(this) // Calling this method sets the callback on the fragment
 
-        // locationViewModel = ViewModelProvider(this)[LocationViewModel::class.java]
         lifecycleScope.launch (Dispatchers.Main) {
             lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) { // keeps collecting even when app goes background <-> foreground
                 // LocationRepository is the object containing the user location.
@@ -101,7 +100,16 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
                     Log.d("MapsActivity", "User is at: ($lat, $long)")
                     val user_dist = 1000 // TODO Fix this calculation later !!!
                     if (::circle.isInitialized && user_dist <= circle.radius) { // If the user entered the circle
-                        // Notify them
+                        val soundGenerator = SoundManager(applicationContext)
+                        soundGenerator.playSound()
+                        // Send a new notification
+                        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                        val notification = NotificationCompat.Builder(applicationContext, LocationService.NOTIFICATION_CHANNEL_ID)
+                            .setContentTitle("CommuterPartner")
+                            .setContentText("You have arrived at your destination!")
+                            .setSmallIcon(R.drawable.ic_launcher_background)
+                            .build()
+                        notificationManager.notify(LocationService.FOREGROUND_ID, notification)
                         Log.d("MapsActivity", "User is now inside the circle!")
                         targetAcquired = false
                         targetAcquiredBtn.text = "Notify Me Upon Arrival"
@@ -119,6 +127,20 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
                 }
             }
         }
+    }
+
+    fun openNotificationSettings(context: Context) {
+        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).apply {
+                putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                putExtra(Settings.EXTRA_CHANNEL_ID, LocationService.NOTIFICATION_CHANNEL_ID) // Same as created earlier
+            }
+        } else {
+            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+            }
+        }
+        context.startActivity(intent)
     }
 
     /**
@@ -155,18 +177,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
         circleRadSeekBar = findViewById(R.id.circle_rad_seek_bar)
         circleRadSeekBar.min = MIN_RADIUS.toInt()
         circleRadSeekBar.max = MAX_RADIUS.toInt()
-
-        // Basic Notification Test
-        /*
-        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val notification = NotificationCompat.Builder(this, LocationService.NOTIFICATION_CHANNEL_ID)
-            .setContentTitle("Test Notification")
-            .setContentText("This is a test")
-            .setSmallIcon(R.drawable.ic_launcher_background)
-            .build()
-
-        notificationManager.notify(999, notification)
-         */
 
         // Requesting permission to send notifications
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // Android 13+
