@@ -66,8 +66,35 @@ class LocationService: Service() {
                 val long = location .longitude + Random.nextDouble(0.0, 1.0)
                 val updatedNotification = notification.setContentText("Location: ($long, $lat)")
                 notificationManager.notify(FOREGROUND_ID, updatedNotification.build())
-                // Update the LocationRepository
-                LocationRepository.updateLocation(lat, long)
+                Log.d("LocationService", "User is at: ($lat, $long)")
+                // Read the LocationRepository circle center and radius
+                /*
+                // If this Service needs continuous updates, we can use collect inside a coroutine
+                CoroutineScope(Dispatchers.IO).launch {
+                    LocationRepository.locationFlow.collect { locationData ->
+                        Log.d("LocationService", "Updated location: ${locationData.lat}, ${locationData.long}, Radius: ${locationData.radius}")
+                    }
+                }
+                 */
+                val circleData = LocationRepository.locationFlow.value
+                val circleLat = circleData.lat
+                val circleLong = circleData.long
+                val circleRadius = circleData.radius
+                val arrived = circleRadius > 900 // TODO: Calculation to see whether the user is now inside the circle
+                Log.d("LocationService", "Arrived is: $arrived")
+                Log.d("LocationService", "circleRadius is: $circleRadius")
+                if (arrived) {
+                    Log.d("LocationService", "User is inside the circle!")
+                    val soundGenerator = SoundManager(applicationContext)
+                    soundGenerator.playSound()
+                    // Send a new notification
+                    val arrivedNotification = notification.setContentText("You have arrived at your destination!")
+                    notificationManager.notify(FOREGROUND_ID, arrivedNotification.build())
+                    // Update the LocationRepository
+                    LocationRepository.updateLocation(circleLat, circleLong, circleRadius, arrived)
+                    // Stop tracking the user
+                    stop()
+                }
             }
             .launchIn(serviceScope)
     }

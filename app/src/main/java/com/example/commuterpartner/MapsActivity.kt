@@ -92,37 +92,20 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
             lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) { // keeps collecting even when app goes background <-> foreground
                 // LocationRepository is the object containing the user location.
                 // locationFlow is the name of the Flow in LocationRepository
-                LocationRepository.locationFlow.collect { (lat, long) ->
+                LocationRepository.locationFlow.collect { (lat, long, radius, arrived) ->
                     /**
-                     * The code which tracks the user's location and sends notifications
-                     * once the user has entered the circle radius
+                     * The code which updates the UI once the user has entered the circle radius
                      */
                     Log.d("MapsActivity", "User is at: ($lat, $long)")
-                    val user_dist = 1000 // TODO Fix this calculation later !!!
-                    if (::circle.isInitialized && user_dist <= circle.radius) { // If the user entered the circle
-                        val soundGenerator = SoundManager(applicationContext)
-                        soundGenerator.playSound()
-                        // Send a new notification
-                        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                        val notification = NotificationCompat.Builder(applicationContext, LocationService.NOTIFICATION_CHANNEL_ID)
-                            .setContentTitle("CommuterPartner")
-                            .setContentText("You have arrived at your destination!")
-                            .setSmallIcon(R.drawable.ic_launcher_background)
-                            .build()
-                        notificationManager.notify(LocationService.FOREGROUND_ID, notification)
+                    if (::circle.isInitialized && arrived) { // If the user entered the circle
                         Log.d("MapsActivity", "User is now inside the circle!")
                         targetAcquired = false
                         targetAcquiredBtn.text = "Notify Me Upon Arrival"
                         activeMarker = null
                         circle.isVisible = false
                         circleRadSeekBar.visibility = View.INVISIBLE
-                        // Stop tracking the user
-                        // To stop tracking, we need to send an Intent to our LocationService
-                        // to trigger the onStartCommand()
-                        Intent(applicationContext, LocationService::class.java).apply {
-                            action = LocationService.ACTION_STOP
-                            startForegroundService(this)
-                        }
+                        // Update the LocationRepository
+                        LocationRepository.updateLocation(circle.center.latitude, circle.center.longitude, circle.radius, false)
                     }
                 }
             }
@@ -335,6 +318,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
             targetAcquired = true
             targetAcquiredBtn.text = "Cancel Notification/ Designate a Different Marker"
             // circleRadSeekBar.visibility = View.INVISIBLE // TODO: COMMENT THIS OUT WHEN I WANT TO TEST NOTIFICATION UPON USER ENTERING CIRCLE
+            // Update the LocationRepository with the center and radius of the Circle
+            LocationRepository.updateLocation(circle.center.latitude, circle.center.longitude, circle.radius, false)
             // To start tracking, we need to send an Intent to our LocationService
             // to trigger the onStartCommand()
             Intent(applicationContext, LocationService::class.java).apply {
