@@ -16,6 +16,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import kotlin.random.Random
 
 class LocationService: Service() {
@@ -61,21 +62,39 @@ class LocationService: Service() {
         locationClient.getLocationUpdates(INTERVAL)
             .catch { e -> e.printStackTrace() }
             .onEach { location ->
-                // TODO: Fix the random later!
-                val lat = location .latitude + Random.nextDouble(0.0, 1.0)
-                val long = location .longitude + Random.nextDouble(0.0, 1.0)
+                // TODO: Fix the random later! Included so that position changes and MutableStateFlow in LocationRepository updates
+                val lat = location.latitude + Random.nextDouble(0.0, 1.0)
+                val long = location.longitude + Random.nextDouble(0.0, 1.0)
                 val updatedNotification = notification.setContentText("Location: ($long, $lat)")
                 notificationManager.notify(FOREGROUND_ID, updatedNotification.build())
                 Log.d("LocationService", "User is at: ($lat, $long)")
                 // Read the LocationRepository circle center and radius
-                /*
-                // If this Service needs continuous updates, we can use collect inside a coroutine
-                CoroutineScope(Dispatchers.IO).launch {
-                    LocationRepository.locationFlow.collect { locationData ->
-                        Log.d("LocationService", "Updated location: ${locationData.lat}, ${locationData.long}, Radius: ${locationData.radius}")
+                // If this Service needs continuous updates, use the following block of code
+                CoroutineScope(Dispatchers.Main).launch {
+                    LocationRepository.locationFlow.collect { circleData ->
+                        // This block gets executed every time the LocationRepository gets updated
+                        val circleLat = circleData.lat
+                        val circleLong = circleData.long
+                        val circleRadius = circleData.radius
+                        val arrived = circleRadius + Random.nextDouble(0.0, 150.0) > 900 // TODO: Calculation to see whether the user is now inside the circle
+                        Log.d("LocationService", "Arrived is: $arrived")
+                        Log.d("LocationService", "circleRadius is: $circleRadius")
+                        if (arrived) {
+                            Log.d("LocationService", "User is inside the circle!")
+                            val soundGenerator = SoundManager(applicationContext)
+                            soundGenerator.playSound()
+                            // Send a new notification
+                            val arrivedNotification = notification.setContentText("You have arrived at your destination!")
+                            notificationManager.notify(FOREGROUND_ID, arrivedNotification.build())
+                            // Update the LocationRepository
+                            LocationRepository.updateLocation(lat, long, circleRadius, arrived)
+                            // Stop tracking the user
+                            stop()
+                        }
                     }
                 }
-                 */
+                /*
+                // If the Service only needs one-time update, perform the following block of code
                 val circleData = LocationRepository.locationFlow.value
                 val circleLat = circleData.lat
                 val circleLong = circleData.long
@@ -91,10 +110,11 @@ class LocationService: Service() {
                     val arrivedNotification = notification.setContentText("You have arrived at your destination!")
                     notificationManager.notify(FOREGROUND_ID, arrivedNotification.build())
                     // Update the LocationRepository
-                    LocationRepository.updateLocation(circleLat, circleLong, circleRadius, arrived)
+                    LocationRepository.updateLocation(lat, long, circleRadius, arrived)
                     // Stop tracking the user
                     stop()
                 }
+                */
             }
             .launchIn(serviceScope)
     }

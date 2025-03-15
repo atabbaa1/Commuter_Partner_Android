@@ -92,6 +92,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
             lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) { // keeps collecting even when app goes background <-> foreground
                 // LocationRepository is the object containing the user location.
                 // locationFlow is the name of the Flow in LocationRepository
+                // This block of code gets executed every time the LocationRepository changes
                 LocationRepository.locationFlow.collect { (lat, long, radius, arrived) ->
                     /**
                      * The code which updates the UI once the user has entered the circle radius
@@ -104,8 +105,11 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
                         activeMarker = null
                         circle.isVisible = false
                         circleRadSeekBar.visibility = View.INVISIBLE
-                        // Update the LocationRepository
-                        LocationRepository.updateLocation(circle.center.latitude, circle.center.longitude, circle.radius, false)
+//                      // Do NOT stop the Service from here with an Intent. The app just crashes
+                        // Also, do NOT update LocationRepository with arrived=false
+                        // This creates an infinite loop because then the locationFlow in
+                        // LocationService will trigger and update LocationRepository with
+                        // arrived=true, which triggers this locationFlow with arrived=false, ...
                     }
                 }
             }
@@ -362,6 +366,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
                         if (fromUser) {
                             circle.radius = progress.toDouble()
                             marker.tag = progress.toDouble()
+                            LocationRepository.updateLocation(circle.center.latitude, circle.center.longitude, circle.radius, false) // TODO: Remove this later. Allows for circle changes to transmit to LocationRepository
                         }
                     }
                     override fun onStartTrackingTouch(seekBar: SeekBar?) {
