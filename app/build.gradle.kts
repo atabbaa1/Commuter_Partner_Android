@@ -76,5 +76,8 @@ dependencies {
     // For by activityViewModels()
     implementation ("androidx.activity:activity-ktx:1.8.0")
     implementation ("androidx.fragment:fragment-ktx:1.8.6")
+    // For Activity Result API (accessing ringtones in Settings)
+    implementation ("androidx.activity:activity-ktx:1.7.0")
+    implementation ("androidx.fragment:fragment-ktx:1.5.7")
 
 }

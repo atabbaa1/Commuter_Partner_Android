@@ -15,6 +15,8 @@
 
 package com.example.commuterpartner
 
+import android.net.Uri
+import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -26,11 +28,21 @@ data class LocationData(
 )
 
 object LocationRepository {
+    // A flow for location data
     private val _locationFlow = MutableStateFlow(LocationData(0.0, 0.0, 0.0, false))
     val locationFlow: StateFlow<LocationData> = _locationFlow
+    // A flow for the selected ringtone URI
+    private val _ringtoneFlow = MutableStateFlow<Uri?>(null)
+    val ringtoneFlow: StateFlow<Uri?> = _ringtoneFlow
+
 
     fun updateLocation(lat: Double, long: Double, radius: Double, arrived: Boolean) {
         _locationFlow.value = LocationData(lat, long, radius, arrived)
+    }
+
+    fun updateRingtone(ringtone: Uri) {
+        _ringtoneFlow.value = ringtone
+        Log.d("LocationRepository", "Updated ringtone")
     }
 }
 

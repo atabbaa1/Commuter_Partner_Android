@@ -26,12 +26,16 @@ import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.media.RingtoneManager
+import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.SeekBar
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.core.app.NotificationCompat
 import androidx.fragment.app.FragmentManager
@@ -62,12 +66,15 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
     private val MAX_RADIUS: Double = 5000.0
     var currLocation: Location ?= null
     val fusedLocationProviderClient: FusedLocationProviderClient ?= null
+    private val DEFAULT_RINGTONE = "Falling Star"
 
     private lateinit var targetAcquiredBtn: Button
     private var activeMarker: Marker ?= null // Declaring activeMarker as type Marker, and initializing to null. It can be assigned a value null later on, too
     private lateinit var circle: Circle // Declaring circle as type Circle. No default value and can never be null. Use if (::circle.isInitialized)
     private var targetAcquired = false // This reveals whether a Marker has been designated for notification
     private lateinit var circleRadSeekBar: SeekBar
+    private lateinit var settingsBtn: Button
+    private lateinit var ringtonePickerLauncher: ActivityResultLauncher<Intent>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -105,7 +112,25 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
                         activeMarker = null
                         circle.isVisible = false
                         circleRadSeekBar.visibility = View.INVISIBLE
-//                      // Do NOT stop the Service from here with an Intent. The app just crashes
+
+                        Log.d("MapsActivity", "About to generate arrivedDialog")
+                        val arrivedDialog = AlertDialog.Builder(this@MapsActivity)
+                            .setTitle("Arrived")
+                            .setMessage("You have arrived at your destination!")
+                            .setPositiveButton("OK") { _, _ ->
+                                Intent(applicationContext, LocationService::class.java).apply {
+                                    action = LocationService.STOP_RINGTONE
+                                    startForegroundService(this)
+                                }
+                                Intent(applicationContext, LocationService::class.java).apply {
+                                    action = LocationService.ACTION_STOP
+                                    startForegroundService(this)
+                                }
+                            }
+                            .setCancelable(false)
+                            .create()
+                        arrivedDialog.show()
+                        // Do NOT stop the Service from here with an Intent. The app just crashes
                         // Also, do NOT update LocationRepository with arrived=false
                         // This creates an infinite loop because then the locationFlow in
                         // LocationService will trigger and update LocationRepository with
@@ -114,8 +139,44 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
                 }
             }
         }
+
+        circleRadSeekBar = findViewById(R.id.circle_rad_seek_bar)
+        circleRadSeekBar.min = MIN_RADIUS.toInt()
+        circleRadSeekBar.max = MAX_RADIUS.toInt()
+
+        settingsBtn = findViewById(R.id.settings)
+        settingsBtn.setOnClickListener{
+            val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER)
+            intent.putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_RINGTONE)
+            intent.putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Select Ringtone")
+            intent.putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, DEFAULT_RINGTONE) // Optional: Pre-select a ringtone
+            ringtonePickerLauncher.launch(intent)
+        }
+
+        // Register for the ringtone picker result
+        ringtonePickerLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == RESULT_OK) {
+                val ringtoneUri: Uri? = result.data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+                if (ringtoneUri != null) {
+                    // Update the MutableStateFlow in the service with the selected URI
+                    lifecycleScope.launch {
+                        LocationRepository.updateRingtone(ringtoneUri) // TODO: This might be a problem. Unsure
+                    }
+                }
+            }
+        }
+
+        // Requesting permission to send notifications
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // Android 13+
+            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this,
+                    arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1001)
+            }
+        }
     }
 
+    /*
     fun openNotificationSettings(context: Context) {
         val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).apply {
@@ -129,6 +190,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
         }
         context.startActivity(intent)
     }
+     */
 
     /**
      * This callback is triggered when the map is ready to be used.
@@ -160,19 +222,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
             targetAcquiredBtn.text = "Notify Me Upon Arrival"
             targetAcquiredBtn.setOnClickListener {handleTargetAcquired(targetAcquiredBtn)}
         }
-
-        circleRadSeekBar = findViewById(R.id.circle_rad_seek_bar)
-        circleRadSeekBar.min = MIN_RADIUS.toInt()
-        circleRadSeekBar.max = MAX_RADIUS.toInt()
-
-        // Requesting permission to send notifications
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // Android 13+
-            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS)
-                != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this,
-                    arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1001)
-            }
-        }
     }
 
     override fun onMapLongClick(p0: LatLng) {
@@ -200,13 +249,11 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
      */
     @SuppressLint("MissingPermission")
     private fun enableMyLocation() {
-
         // 1. Check if permissions are granted, if so, enable the my location layer
         if (this.hasLocationPermission()) {
             mMap.isMyLocationEnabled = true
             return
         }
-
         // 2. If a permission rationale dialog should be shown before requesting permission
         // This occurs when the user has previously denied permission
         if (ActivityCompat.shouldShowRequestPermissionRationale(
@@ -226,7 +273,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
             }
             return
         }
-
         // 3. Otherwise, request permission
         ActivityCompat.requestPermissions(
             this,
@@ -274,7 +320,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
             )
             return
         }
-
         if (isPermissionGranted(
                 permissions,
                 grantResults,
@@ -317,7 +362,14 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
 
     private fun handleTargetAcquired (targetAcquiredBtn: Button) {
         if (activeMarker == null) {
-            // Notify the user he/she must click on a marker to designate it for notification
+            val noDestinationDialog = AlertDialog.Builder(this)
+                .setTitle("No Designated Destination")
+                .setMessage("You need to select a marker as a destination to be notified upon arrival.")
+                .setPositiveButton("OK") { _, _ ->
+                }
+                .setCancelable(true)
+                .create()
+            noDestinationDialog.show()
         } else if (!targetAcquired) {
             targetAcquired = true
             targetAcquiredBtn.text = "Cancel Notification/ Designate a Different Marker"
@@ -399,6 +451,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
          * @see .onRequestPermissionsResult
          */
         private const val LOCATION_PERMISSION_REQUEST_CODE = 1
+        private const val RINGTONE_PERMISSION_REQUEST_CODE = 3
     }
 }
 
