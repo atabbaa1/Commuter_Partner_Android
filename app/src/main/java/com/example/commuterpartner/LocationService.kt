@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlin.math.pow
 import kotlin.random.Random
 
 class LocationService: Service() {
@@ -55,6 +56,15 @@ class LocationService: Service() {
         return super.onStartCommand(intent, flags, startId)
     }
 
+    // Calculate the distance in meters between two (lat,long) pairs using Haversine formula
+    private fun calculateDistance(lat1: Double, lng1: Double, lat2: Double, lng2: Double): Double {
+        val R = 6378137 // Earth's mean radius in meters
+        val dLat = (lat2 - lat1) * kotlin.math.PI / 180 / 2
+        val dLng = (lng2 - lng1) * kotlin.math.PI / 180 / 2
+        val sqrtTerm = kotlin.math.sin(dLat).pow(2) + kotlin.math.cos(lat1 * kotlin.math.PI/180) * kotlin.math.cos(lat2 * kotlin.math.PI/180) * kotlin.math.sin(dLng).pow(2)
+        return R * 2 * kotlin.math.atan2(kotlin.math.sqrt(sqrtTerm), kotlin.math.sqrt(1 - sqrtTerm))
+    }
+
     private fun start() {
         // TODO: Eventually, remove the changing notification *****************************************************
         val notification = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
@@ -69,8 +79,10 @@ class LocationService: Service() {
             .catch { e -> e.printStackTrace() }
             .onEach { location ->
                 // TODO: Fix the random later! Included so that position changes and MutableStateFlow in LocationRepository updates
-                val lat = location.latitude + Random.nextDouble(0.0, 1.0)
-                val long = location.longitude + Random.nextDouble(0.0, 1.0)
+                // val lat = location.latitude + Random.nextDouble(0.0, 1.0)
+                // val long = location.longitude + Random.nextDouble(0.0, 1.0)
+                val lat = location.latitude
+                val long = location.longitude
                 val updatedNotification = notification.setContentText("Location: ($long, $lat)")
                 notificationManager.notify(FOREGROUND_ID, updatedNotification.build())
                 Log.d("LocationService", "User is at: ($lat, $long)")
@@ -83,7 +95,8 @@ class LocationService: Service() {
                         val circleLat = circleData.lat
                         val circleLong = circleData.long
                         val circleRadius = circleData.radius
-                        val arrived = circleRadius + Random.nextDouble(0.0, 150.0) > 900 // TODO: Calculation to see whether the user is now inside the circle
+                        // val arrived = circleRadius + Random.nextDouble(0.0, 150.0) > 900 // TODO: Calculation to see whether the user is now inside the circle
+                        val arrived = circleRadius >= calculateDistance(lat, long, circleLat, circleLong)
                         Log.d("LocationService", "Arrived is: $arrived")
                         Log.d("LocationService", "circleRadius is: $circleRadius")
                         if (arrived) {
@@ -113,7 +126,8 @@ class LocationService: Service() {
                 val circleLat = circleData.lat
                 val circleLong = circleData.long
                 val circleRadius = circleData.radius
-                val arrived = circleRadius + Random.nextDouble(0.0, 150.0) > 900 // TODO: Calculation to see whether the user is now inside the circle
+                // val arrived = circleRadius + Random.nextDouble(0.0, 150.0) > 900 // TODO: Calculation to see whether the user is now inside the circle
+                val arrived = circleRadius >= calculateDistance(lat, long, circleLat, circleLong)
                 Log.d("LocationService", "Arrived is: $arrived")
                 Log.d("LocationService", "circleRadius is: $circleRadius")
                 if (arrived) {
@@ -140,7 +154,9 @@ class LocationService: Service() {
     private fun stop() {
         Log.d("LocationService", "Inside stop()")
         stopForeground(STOP_FOREGROUND_REMOVE) // This or the line below calls onDestroy()
+        Log.d("LocationService", "Inside stop(), after stopForeground() call")
         stopSelf() // This or the line below calls onDestroy()
+        Log.d("LocationService", "Inside stop(), after stopSelf() call")
     }
 
     // When the service is destroyed, cancel the serviceScope: CoroutineScope
@@ -149,12 +165,17 @@ class LocationService: Service() {
     // cancelled, the app automatically stops tracking location
     override fun onDestroy() {
         Log.d("LocationService", "Inside onDestroy()")
+        // stopRingtone()
         super.onDestroy()
         serviceScope.cancel()
     }
 
     private fun playRingtone(uri: Uri) {
         Log.d("LocationService", "Entering playRingtone() method")
+        // If the user has already arrived, the ringtone is already playing.
+        // So, don't replay the ringtone. This ensures only one ringtone needs to be stopped
+        // when the ringtone needs to stop playing.
+        if (LocationRepository.locationFlow.value.arrived) return
         ringtone = RingtoneManager.getRingtone(applicationContext, uri)
         ringtone?.play()
         Log.d("LocationService", "ringtone playing now")
@@ -162,10 +183,15 @@ class LocationService: Service() {
 
     private fun stopRingtone() {
         Log.d("LocationService", "Entering stopRingtone() method")
+        // If arrived is false, there is no ringtone playing. Therefore, there's nothing to stop
+        if (!LocationRepository.locationFlow.value.arrived) return
+        if (ringtone == null) {
+            Log.d("LocationService", "The ringtone is null.")
+        }
         ringtone?.stop()
         LocationRepository.updateLocation(0.0, 0.0, 0.0, false)
         // Stop tracking the user
-        stop()
+        // stop()
     }
 
     // Allows the constants inside to be accessible outside this class with the dot '.' operator
