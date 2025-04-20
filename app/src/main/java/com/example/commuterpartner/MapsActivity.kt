@@ -145,20 +145,14 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
         circleRadSeekBar.max = MAX_RADIUS.toInt()
 
         settingsBtn = findViewById(R.id.settings)
-        settingsBtn.setOnClickListener{
-            val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER)
-            intent.putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_RINGTONE)
-            intent.putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Select Ringtone")
-            intent.putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, DEFAULT_RINGTONE) // Optional: Pre-select a ringtone
-            ringtonePickerLauncher.launch(intent)
-        }
+        settingsBtn.setOnClickListener{settingsBtnClickListener()}
 
         // Register for the ringtone picker result
         ringtonePickerLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             if (result.resultCode == RESULT_OK) {
                 val ringtoneUri: Uri? = result.data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
                 if (ringtoneUri != null) {
-                    // Update the MutableStateFlow in the service with the selected URI
+                    // Update the LocationRepository with the selected URI
                     lifecycleScope.launch {
                         LocationRepository.updateRingtone(ringtoneUri) // TODO: This might be a problem. Unsure
                     }
@@ -176,21 +170,36 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
         }
     }
 
-    /*
-    fun openNotificationSettings(context: Context) {
-        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).apply {
-                putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-                putExtra(Settings.EXTRA_CHANNEL_ID, LocationService.NOTIFICATION_CHANNEL_ID) // Same as created earlier
-            }
-        } else {
-            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
-                putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+    /**
+     * This function is the click listener for the settingsBtn
+     */
+    private fun settingsBtnClickListener() {
+        // Check to see whether the user has granted permission for allowing notifications
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // Android 13+
+            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+                // Display a dialog box explaining why notifications must be enabled
+                val notificationsDisabledDialog = AlertDialog.Builder(this)
+                    .setTitle("Notifications are Disabled")
+                    .setMessage("Please enable notifications so that you can be notified when you arrive at your destination.")
+                    .setPositiveButton("Try Again") { _, _ ->
+                        ActivityCompat.requestPermissions(this,
+                            arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1001)
+                    }
+                    .setCancelable(false)
+                    .create()
+                notificationsDisabledDialog.show()
+                return
+            } else {
+                val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER)
+                intent.putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_RINGTONE)
+                intent.putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Select Ringtone")
+                intent.putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, DEFAULT_RINGTONE) // Optional: Pre-select a ringtone
+                ringtonePickerLauncher.launch(intent)
             }
         }
-        context.startActivity(intent)
     }
-     */
+
 
     /**
      * This callback is triggered when the map is ready to be used.
@@ -255,7 +264,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
             return
         }
         // 2. If a permission rationale dialog should be shown before requesting permission
-        // This occurs when the user has previously denied permission
         if (ActivityCompat.shouldShowRequestPermissionRationale(
                 this,
                 Manifest.permission.ACCESS_FINE_LOCATION
@@ -290,7 +298,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
     }
 
     // This function gets executed when a permission rationale dialog should be shown before requesting permission
-    // Rationale dialogs are shown after users have previously rejected the permission
     private fun showPermissionRationaleDialog(
         context: Context,
         requestCode: Int,
@@ -371,6 +378,36 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
                 .create()
             noDestinationDialog.show()
         } else if (!targetAcquired) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // Android 13+
+                // Check to see whether the user has enabled notifications
+                if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS)
+                    != PackageManager.PERMISSION_GRANTED) {
+                    // Display a dialog box explaining why notifications must be enabled
+                    val notificationsDisabledDialog = AlertDialog.Builder(this)
+                        .setTitle("Notifications are Disabled")
+                        .setMessage("Please enable notifications so that you can be notified when you arrive at your destination.")
+                        .setPositiveButton("Try Again") { _, _ ->
+                            ActivityCompat.requestPermissions(this,
+                                arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1001)
+                        }
+                        .setCancelable(false)
+                        .create()
+                    notificationsDisabledDialog.show()
+                    return
+                }
+                // Check to see whether the user has selected a ringtone
+                if (LocationRepository.ringtoneFlow.value == null) {
+                    val noRingtoneDialog = AlertDialog.Builder(this)
+                        .setTitle("No Ringtones Selected")
+                        .setMessage("Please tap the Settings icon on the top left and select a ringtone to be notified upon arriving at your destination.")
+                        .setPositiveButton("OK") { _, _ ->
+                        }
+                        .setCancelable(true)
+                        .create()
+                    noRingtoneDialog.show()
+                    return
+                }
+            }
             targetAcquired = true
             targetAcquiredBtn.text = "Cancel Notification/ Designate a Different Marker"
             // circleRadSeekBar.visibility = View.INVISIBLE // TODO: COMMENT THIS OUT WHEN I WANT TO TEST NOTIFICATION UPON USER ENTERING CIRCLE
