@@ -34,8 +34,9 @@ class DefaultLocationClient(
             }
             // Now, actually fetch the location by creating a LocationRequest
             val request = LocationRequest.Builder(interval) // val request = LocationRequest.create().setInterval(interval)
-                .setPriority(Priority.PRIORITY_BALANCED_POWER_ACCURACY)
+                .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
                 .build()
+            // TODO: Change the .setPriority() for more/ less accurate locations and more/ less frequent updates when running in foreground
             val locationCallback = object : LocationCallback() {
                 // The below function is called whenever the FusedLocationProviderClient fetches a new location
                 override fun onLocationResult(p0: LocationResult) {
