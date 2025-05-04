@@ -22,9 +22,6 @@
         android:theme="@style/Theme.CommuterPartner"
         tools:targetApi="31">
         <service android:name=".LocationService" android:foregroundServiceType="location" android:exported="false" />
-        <activity
-            android:name=".CircleActivity"
-            android:exported="false" />
         <!--
 
              To get one, follow the directions here:

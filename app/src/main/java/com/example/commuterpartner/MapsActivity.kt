@@ -70,6 +70,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
 
     private lateinit var targetAcquiredBtn: Button
     private var activeMarker: Marker ?= null // Declaring activeMarker as type Marker, and initializing to null. It can be assigned a value null later on, too
+    private var active = false // A boolean for whether there's an activeMarker. Added for preserving UI State
     private lateinit var circle: Circle // Declaring circle as type Circle. No default value and can never be null. Use if (::circle.isInitialized)
     private var targetAcquired = false // This reveals whether a Marker has been designated for notification
     private lateinit var circleRadSeekBar: SeekBar
@@ -78,7 +79,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
+        Log.d("MapsActivity", "Inside onCreate()")
         binding = ActivityMapsBinding.inflate(layoutInflater)
         // setContentView(R.layout.activity_maps)
         setContentView(binding.root) // binding.root is the layout file (contains widgets like Buttons, TextView, etc.)
@@ -99,7 +100,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
             lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) { // keeps collecting even when app goes background <-> foreground
                 // LocationRepository is the object containing the user location.
                 // locationFlow is the name of the Flow in LocationRepository
-                // This block of code gets executed every time the LocationRepository changes
+                // The below block of code gets executed every time the LocationRepository changes
                 LocationRepository.locationFlow.collect { (lat, long, radius, arrived) ->
                     /**
                      * The code which updates the UI once the user has entered the circle radius
@@ -110,6 +111,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
                         targetAcquired = false
                         targetAcquiredBtn.text = "Notify Me Upon Arrival"
                         activeMarker = null
+                        active = false
                         circle.isVisible = false
                         circleRadSeekBar.visibility = View.INVISIBLE
 
@@ -143,6 +145,18 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
         circleRadSeekBar = findViewById(R.id.circle_rad_seek_bar)
         circleRadSeekBar.min = MIN_RADIUS.toInt()
         circleRadSeekBar.max = MAX_RADIUS.toInt()
+        circleRadSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
+                if (fromUser) {
+                    circle.radius = progress.toDouble()
+                    LocationRepository.updateLocation(circle.center.latitude, circle.center.longitude, circle.radius, false) // TODO: Remove this later. Allows for circle changes to transmit to LocationRepository
+                }
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {
+            }
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {
+            }
+        })
 
         settingsBtn = findViewById(R.id.settings)
         settingsBtn.setOnClickListener{settingsBtnClickListener()}
@@ -209,6 +223,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
      */
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
+        Log.d("MapsActivity", "mMap is: $mMap")
         // Add a marker in Sydney and move the camera
         val sydney = LatLng(-34.0, 151.0)
         val sydneyMarker = mMap.addMarker(MarkerOptions().position(sydney).title("Marker in Sydney"))
@@ -243,10 +258,12 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
     override fun onMapClick(p0: LatLng) {
         if (!targetAcquired) {
             activeMarker = null
+            active = false
             circle.isVisible = false
             circleRadSeekBar.visibility = View.INVISIBLE
         } else {
             activeMarker = activeMarker
+            active = true
             circle.center = activeMarker?.position!! // the !! means it is non-null
             circle.isVisible = true
         }
@@ -368,7 +385,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
     }
 
     private fun handleTargetAcquired (targetAcquiredBtn: Button) {
-        if (activeMarker == null) {
+        if (!active || activeMarker == null) {
             val noDestinationDialog = AlertDialog.Builder(this)
                 .setTitle("No Designated Destination")
                 .setMessage("You need to select a marker as a destination to be notified upon arrival.")
@@ -410,6 +427,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
             }
             targetAcquired = true
             targetAcquiredBtn.text = "Cancel Notification/ Designate a Different Marker"
+            activeMarker!!.tag = circleRadSeekBar.progress.toDouble()
             // circleRadSeekBar.visibility = View.INVISIBLE // TODO: COMMENT THIS OUT WHEN I WANT TO TEST NOTIFICATION UPON USER ENTERING CIRCLE
             // Update the LocationRepository with the center and radius of the Circle
             LocationRepository.updateLocation(circle.center.latitude, circle.center.longitude, circle.radius, false)
@@ -441,37 +459,94 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
         if (targetAcquired) {
             return true
         } else {
-            if (activeMarker == null || activeMarker?.title != marker.title ) {
+            if (!active || activeMarker == null || activeMarker?.title != marker.title ) {
                 // Make clicked marker the activeMarker and show circle around it
                 activeMarker = marker
+                active = true
                 circle.center = marker.position
                 circle.isVisible = true
                 circle.radius = marker.tag as Double
                 // Reveal the SeekBar to modify the radius of the circle
                 circleRadSeekBar.visibility = View.VISIBLE
                 circleRadSeekBar.progress = (marker.tag as Double).toInt() // "as" just states what the Any? object is. toInt() casts it to an Int
-                circleRadSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                    override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
-                        if (fromUser) {
-                            circle.radius = progress.toDouble()
-                            marker.tag = progress.toDouble()
-                            LocationRepository.updateLocation(circle.center.latitude, circle.center.longitude, circle.radius, false) // TODO: Remove this later. Allows for circle changes to transmit to LocationRepository
-                        }
-                    }
-                    override fun onStartTrackingTouch(seekBar: SeekBar?) {
-                    }
-                    override fun onStopTrackingTouch(seekBar: SeekBar?) {
-                    }
-                })
                 return false // Maintain default behavior when clicked (show info window and pan to center)
             } else {
                 // Clicked marker is the same as current activeMarker. Remove its activeness and hide circle
                 activeMarker = null
+                active = false
                 circle.isVisible = false
                 circleRadSeekBar.visibility = View.INVISIBLE
                 return true
             }
         }
+    }
+
+    /**
+     * This method is NOT called when the user explicitly closes the Activity or when finish() is
+     * called.
+     * This method is called as the activity begins to stop. This method can persist UI State across
+     * both configuration changes (screen rotation) and system-initiated process deaths (user
+     * navigates away from app and opens it up again shortly after), unlike ViewModel. However, this
+     * method is only good for primitive types and small objects (String). It also requires
+     * serialization/ deserialization, which makes it slow.
+     */
+    override fun onSaveInstanceState(outState: Bundle) {
+        Log.d("MapsActivity", "Inside onSaveInstanceState()")
+        outState.run {
+            putBoolean(TARGET_ACQUIRED, targetAcquired)
+            putBoolean(ACTIVE, active)
+        }
+        // Always call the superclass so it can save the View hierarchy state (text in an EditText)
+        super.onSaveInstanceState(outState)
+        Log.d("MapsActivity", "Leaving onSaveInstanceState()")
+    }
+
+    /**
+     * This method is called after the onStart() method (after onCreate(), which gets called
+     * whether the system is creating a new instance of the Activity or restoring a previous one).
+     * onCreate() --> onStart()/onRestart() --> onResume() --> onPause() --> onStop() --> onDestroy()
+     * This method only gets called if there's a saved state to restore.
+     */
+    override fun onRestoreInstanceState(savedInstanceState: Bundle) {
+        Log.d("MapsActivity", "Inside onRestoreInstanceState()")
+        // Always call the superclass so it can restore the View hierarchy state (text in an EditText)
+        super.onRestoreInstanceState(savedInstanceState)
+
+        savedInstanceState.run {
+            targetAcquired = getBoolean(TARGET_ACQUIRED)
+            active = getBoolean(ACTIVE)
+        }
+        Log.d("MapsActivity", "targetAcquired is: $targetAcquired")
+        Log.d("MapsActivity", "active is: $active")
+        // If there was an activeMarker before UI State change, restore it
+        if (active) {
+            // Make a marker
+            Log.d("MapsActivity", "Creating the marker")
+            val p0 = LatLng(LocationRepository.locationFlow.value.lat + 0.1, LocationRepository.locationFlow.value.long + 0.1)
+            Log.d("MapsActivity", "Made it past line 1")
+            Log.d("MapsActivity", "Made it past while loop")
+            val newMarker = mMap.addMarker(MarkerOptions().position(p0).title(p0.latitude.toString() + ", " + p0.longitude.toString()))
+            Log.d("MapsActivity", "Made it past line 2")
+            newMarker?.tag = LocationRepository.locationFlow.value.radius // .tag NEEDS to stay of type Double. DO NOT make it an Int!!!
+            Log.d("MapsActivity", "Made it past line 3")
+            activeMarker = newMarker
+            // Show the circle around the marker
+            Log.d("MapsActivity", "Creating the circle")
+            circle.center = activeMarker?.position!! // the !! means it is non-null
+            circle.radius = activeMarker?.tag as Double
+            circle.isVisible = true
+            if (targetAcquired) {
+                Log.d("MapsActivity", "Not showing the circleRadSeekBar")
+                circleRadSeekBar.visibility = View.INVISIBLE
+                targetAcquiredBtn.text = "Cancel Notification/ Designate a Different Marker"
+            } else {
+                Log.d("MapsActivity", "Showing the circleRadSeekBar")
+                circleRadSeekBar.visibility = View.VISIBLE
+                circleRadSeekBar.progress = activeMarker?.tag as Int
+                targetAcquiredBtn.text = "Notify Me Upon Arrival"
+            }
+        }
+        Log.d("MapsActivity", "Leaving onRestoreInstanceState()")
     }
 
     override fun onDestroy() {
@@ -489,6 +564,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
          */
         private const val LOCATION_PERMISSION_REQUEST_CODE = 1
         private const val RINGTONE_PERMISSION_REQUEST_CODE = 3
+        private const val PERMISSION_DENIED = "PERMISSION_DENIED"
+        private const val TARGET_ACQUIRED = "TARGET_ACQUIRED"
+        private const val ACTIVE = "ACTIVE"
     }
 }
 
