@@ -126,7 +126,6 @@ class LocationService: Service() {
                 val circleLat = circleData.lat
                 val circleLong = circleData.long
                 val circleRadius = circleData.radius
-                // val arrived = circleRadius + Random.nextDouble(0.0, 150.0) > 900 // TODO: Calculation to see whether the user is now inside the circle
                 val arrived = circleRadius >= calculateDistance(lat, long, circleLat, circleLong)
                 Log.d("LocationService", "Arrived is: $arrived")
                 Log.d("LocationService", "circleRadius is: $circleRadius")

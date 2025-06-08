@@ -71,6 +71,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
     private lateinit var targetAcquiredBtn: Button
     private var activeMarker: Marker ?= null // Declaring activeMarker as type Marker, and initializing to null. It can be assigned a value null later on, too
     private var active = false // A boolean for whether there's an activeMarker. Added for preserving UI State
+    private var map_center_lat = -34.0 // Center of the map for panning. Added for preserving UI State. Initially at Sydney
+    private var map_center_long = 151.0 // Center of the map for panning. Added for preserving UI State. Initially at Sydney
     private lateinit var circle: Circle // Declaring circle as type Circle. No default value and can never be null. Use if (::circle.isInitialized)
     private var targetAcquired = false // This reveals whether a Marker has been designated for notification
     private lateinit var circleRadSeekBar: SeekBar
@@ -149,6 +151,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
             override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
                 if (fromUser) {
                     circle.radius = progress.toDouble()
+                    // activeMarker?.tag = progress.toDouble()
                     LocationRepository.updateLocation(circle.center.latitude, circle.center.longitude, circle.radius, false) // TODO: Remove this later. Allows for circle changes to transmit to LocationRepository
                 }
             }
@@ -224,28 +227,59 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
         Log.d("MapsActivity", "mMap is: $mMap")
-        // Add a marker in Sydney and move the camera
-        val sydney = LatLng(-34.0, 151.0)
-        val sydneyMarker = mMap.addMarker(MarkerOptions().position(sydney).title("Marker in Sydney"))
-        sydneyMarker?.tag = DEFAULT_RADIUS
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney))
+        // Move the camera to map_center
+        mMap.moveCamera(CameraUpdateFactory.newLatLng(LatLng(map_center_lat, map_center_long)))
         mMap.isTrafficEnabled = false
         mMap.mapType = GoogleMap.MAP_TYPE_TERRAIN
         mMap.setPadding(10, 250, 10, 10) // left, top, right, bottom
         mMap.mapColorScheme = MapColorScheme.FOLLOW_SYSTEM
         circle = mMap.addCircle(CircleOptions().radius(DEFAULT_RADIUS)
-            .fillColor(Color.BLUE).visible(false).center(sydney))
+            .fillColor(Color.BLUE).visible(false).center(LatLng(map_center_lat, map_center_long)))
         mMap.setOnMarkerClickListener(this)
         mMap.setOnMapLongClickListener(this)
         mMap.setOnMapClickListener(this) // Accommodates clicks on map as clicking off activeMarker
 
-        // Request permission location from the user
-        enableMyLocation()
-        if (mMap.isMyLocationEnabled) {
-            targetAcquiredBtn = findViewById<Button>(R.id.target_acquired_btn)
-            targetAcquiredBtn.text = "Notify Me Upon Arrival"
-            targetAcquiredBtn.setOnClickListener {handleTargetAcquired(targetAcquiredBtn)}
+        // The below is only relevant if there was a configuration change (screen rotation) or
+        // system-initiated process death (navigate away from app), and the UI state needs to be
+        // restored.
+        // If there was an activeMarker before UI State change, restore it
+        if (active) {
+            enableMyLocation()
+            if (mMap.isMyLocationEnabled) {
+                targetAcquiredBtn = findViewById<Button>(R.id.target_acquired_btn)
+                targetAcquiredBtn.setOnClickListener {handleTargetAcquired(targetAcquiredBtn)}
+            }
+            // Make a marker
+            val p0 = LatLng(LocationRepository.locationFlow.value.lat, LocationRepository.locationFlow.value.long)
+            activeMarker = mMap.addMarker(MarkerOptions().position(p0).title(p0.latitude.toString() + ", " + p0.longitude.toString()))
+            activeMarker?.tag = LocationRepository.locationFlow.value.radius // .tag NEEDS to stay of type Double. DO NOT make it an Int!!!
+            Log.d("MapsActivity", "activeMarker?.position is ${p0}")
+            Log.d("MapsActivity", "activeMarker?.tag is ${LocationRepository.locationFlow.value.radius}")
+            // Show the circle around the marker
+            circle.center = p0
+            circle.radius = LocationRepository.locationFlow.value.radius
+            circle.isVisible = true
+            if (targetAcquired) {
+                Log.d("MapsActivity", "Not showing the circleRadSeekBar")
+                circleRadSeekBar.visibility = View.VISIBLE // TODO: CHANGE THIS TO INVISIBLE WHEN I WANT TO TEST NOTIFICATION UPON USER ENTERING CIRCLE
+                circleRadSeekBar.progress = LocationRepository.locationFlow.value.radius.toInt()
+                targetAcquiredBtn.text = "Cancel Notification/ Designate a Different Marker"
+            } else {
+                Log.d("MapsActivity", "Showing the circleRadSeekBar")
+                circleRadSeekBar.visibility = View.VISIBLE
+                circleRadSeekBar.progress = LocationRepository.locationFlow.value.radius.toInt()
+                targetAcquiredBtn.text = "Notify Me Upon Arrival"
+            }
+        } else {
+            // Request permission location from the user
+            enableMyLocation()
+            if (mMap.isMyLocationEnabled) {
+                targetAcquiredBtn = findViewById<Button>(R.id.target_acquired_btn)
+                targetAcquiredBtn.text = "Notify Me Upon Arrival"
+                targetAcquiredBtn.setOnClickListener {handleTargetAcquired(targetAcquiredBtn)}
+            }
         }
+        Log.d("MapsActivity", "Leaving onMapReady()!")
     }
 
     override fun onMapLongClick(p0: LatLng) {
@@ -469,6 +503,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
                 // Reveal the SeekBar to modify the radius of the circle
                 circleRadSeekBar.visibility = View.VISIBLE
                 circleRadSeekBar.progress = (marker.tag as Double).toInt() // "as" just states what the Any? object is. toInt() casts it to an Int
+                LocationRepository.updateLocation(marker.position.latitude, marker.position.longitude, marker.tag as Double, false) // Save UI state if a marker is active
                 return false // Maintain default behavior when clicked (show info window and pan to center)
             } else {
                 // Clicked marker is the same as current activeMarker. Remove its activeness and hide circle
@@ -495,6 +530,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
         outState.run {
             putBoolean(TARGET_ACQUIRED, targetAcquired)
             putBoolean(ACTIVE, active)
+            putDouble(MAP_CENTER_LAT, mMap.cameraPosition.target.latitude)
+            putDouble(MAP_CENTER_LONG, mMap.cameraPosition.target.longitude)
         }
         // Always call the superclass so it can save the View hierarchy state (text in an EditText)
         super.onSaveInstanceState(outState)
@@ -515,37 +552,11 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
         savedInstanceState.run {
             targetAcquired = getBoolean(TARGET_ACQUIRED)
             active = getBoolean(ACTIVE)
+            map_center_lat = getDouble(MAP_CENTER_LAT)
+            map_center_long = getDouble(MAP_CENTER_LONG)
         }
         Log.d("MapsActivity", "targetAcquired is: $targetAcquired")
         Log.d("MapsActivity", "active is: $active")
-        // If there was an activeMarker before UI State change, restore it
-        if (active) {
-            // Make a marker
-            Log.d("MapsActivity", "Creating the marker")
-            val p0 = LatLng(LocationRepository.locationFlow.value.lat + 0.1, LocationRepository.locationFlow.value.long + 0.1)
-            Log.d("MapsActivity", "Made it past line 1")
-            Log.d("MapsActivity", "Made it past while loop")
-            val newMarker = mMap.addMarker(MarkerOptions().position(p0).title(p0.latitude.toString() + ", " + p0.longitude.toString()))
-            Log.d("MapsActivity", "Made it past line 2")
-            newMarker?.tag = LocationRepository.locationFlow.value.radius // .tag NEEDS to stay of type Double. DO NOT make it an Int!!!
-            Log.d("MapsActivity", "Made it past line 3")
-            activeMarker = newMarker
-            // Show the circle around the marker
-            Log.d("MapsActivity", "Creating the circle")
-            circle.center = activeMarker?.position!! // the !! means it is non-null
-            circle.radius = activeMarker?.tag as Double
-            circle.isVisible = true
-            if (targetAcquired) {
-                Log.d("MapsActivity", "Not showing the circleRadSeekBar")
-                circleRadSeekBar.visibility = View.INVISIBLE
-                targetAcquiredBtn.text = "Cancel Notification/ Designate a Different Marker"
-            } else {
-                Log.d("MapsActivity", "Showing the circleRadSeekBar")
-                circleRadSeekBar.visibility = View.VISIBLE
-                circleRadSeekBar.progress = activeMarker?.tag as Int
-                targetAcquiredBtn.text = "Notify Me Upon Arrival"
-            }
-        }
         Log.d("MapsActivity", "Leaving onRestoreInstanceState()")
     }
 
@@ -567,6 +578,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
         private const val PERMISSION_DENIED = "PERMISSION_DENIED"
         private const val TARGET_ACQUIRED = "TARGET_ACQUIRED"
         private const val ACTIVE = "ACTIVE"
+        private const val MAP_CENTER_LAT = "MAP_CENTER_LAT"
+        private const val MAP_CENTER_LONG = "MAP_CENTER_LONG"
     }
 }
 
