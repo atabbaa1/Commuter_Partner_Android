@@ -70,7 +70,7 @@ class LocationService: Service() {
         val notification = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
             .setContentTitle("Tracking location...")
             .setContentText("Location: null")
-            .setSmallIcon(R.drawable.ic_launcher_background)
+            .setSmallIcon(R.mipmap.commuter_partner_icon_foreground)
             .setOngoing(true)
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         startForeground(FOREGROUND_ID, notification.build())
@@ -85,7 +85,7 @@ class LocationService: Service() {
                 val long = location.longitude
                 val updatedNotification = notification.setContentText("Location: ($long, $lat)")
                 notificationManager.notify(FOREGROUND_ID, updatedNotification.build())
-                Log.d("LocationService", "User is at: ($lat, $long)")
+                // Log.d("LocationService", "User is at: ($lat, $long)")
                 // Read the LocationRepository circle center and radius
                 // If this Service needs continuous updates, use the following block of code
                 /*
@@ -127,14 +127,11 @@ class LocationService: Service() {
                 val circleLong = circleData.long
                 val circleRadius = circleData.radius
                 val arrived = circleRadius >= calculateDistance(lat, long, circleLat, circleLong)
-                Log.d("LocationService", "Arrived is: $arrived")
-                Log.d("LocationService", "circleRadius is: $circleRadius")
                 if (arrived) {
-                    Log.d("LocationService", "User is inside the circle!")
+                    // Log.d("LocationService", "User is inside the circle!")
                     // Generate the notification sound
                     val uri = LocationRepository.ringtoneFlow.value
                     if (uri != null) {
-                        Log.d("LocationService", "The ringtone is NOT null.")
                         playRingtone(uri)
                     } else {
                         // Shouldn't really ever occur
@@ -151,11 +148,8 @@ class LocationService: Service() {
     }
 
     private fun stop() {
-        Log.d("LocationService", "Inside stop()")
         stopForeground(STOP_FOREGROUND_REMOVE) // This or the line below calls onDestroy()
-        Log.d("LocationService", "Inside stop(), after stopForeground() call")
         stopSelf() // This or the line below calls onDestroy()
-        Log.d("LocationService", "Inside stop(), after stopSelf() call")
     }
 
     // When the service is destroyed, cancel the serviceScope: CoroutineScope
@@ -163,30 +157,23 @@ class LocationService: Service() {
     // callbackFlow, as soon as the Service is destroyed and the serviceScope is
     // cancelled, the app automatically stops tracking location
     override fun onDestroy() {
-        Log.d("LocationService", "Inside onDestroy()")
         // stopRingtone()
         super.onDestroy()
         serviceScope.cancel()
     }
 
     private fun playRingtone(uri: Uri) {
-        Log.d("LocationService", "Entering playRingtone() method")
         // If the user has already arrived, the ringtone is already playing.
         // So, don't replay the ringtone. This ensures only one ringtone needs to be stopped
         // when the ringtone needs to stop playing.
         if (LocationRepository.locationFlow.value.arrived) return
         ringtone = RingtoneManager.getRingtone(applicationContext, uri)
         ringtone?.play()
-        Log.d("LocationService", "ringtone playing now")
     }
 
     private fun stopRingtone() {
-        Log.d("LocationService", "Entering stopRingtone() method")
         // If arrived is false, there is no ringtone playing. Therefore, there's nothing to stop
         if (!LocationRepository.locationFlow.value.arrived) return
-        if (ringtone == null) {
-            Log.d("LocationService", "The ringtone is null.")
-        }
         ringtone?.stop()
         LocationRepository.updateLocation(0.0, 0.0, 0.0, false)
         // Stop tracking the user

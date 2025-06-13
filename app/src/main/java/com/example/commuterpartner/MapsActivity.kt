@@ -81,7 +81,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Log.d("MapsActivity", "Inside onCreate()")
         binding = ActivityMapsBinding.inflate(layoutInflater)
         // setContentView(R.layout.activity_maps)
         setContentView(binding.root) // binding.root is the layout file (contains widgets like Buttons, TextView, etc.)
@@ -107,9 +106,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
                     /**
                      * The code which updates the UI once the user has entered the circle radius
                      */
-                    Log.d("MapsActivity", "User is at: ($lat, $long)")
+                    // Log.d("MapsActivity", "User is at: ($lat, $long)")
                     if (::circle.isInitialized && arrived) { // If the user entered the circle
-                        Log.d("MapsActivity", "User is now inside the circle!")
+                        // Log.d("MapsActivity", "User is now inside the circle!")
                         targetAcquired = false
                         targetAcquiredBtn.text = "Notify Me Upon Arrival"
                         activeMarker = null
@@ -117,7 +116,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
                         circle.isVisible = false
                         circleRadSeekBar.visibility = View.INVISIBLE
 
-                        Log.d("MapsActivity", "About to generate arrivedDialog")
                         val arrivedDialog = AlertDialog.Builder(this@MapsActivity)
                             .setTitle("Arrived")
                             .setMessage("You have arrived at your destination!")
@@ -152,7 +150,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
                 if (fromUser) {
                     circle.radius = progress.toDouble()
                     // activeMarker?.tag = progress.toDouble()
-                    LocationRepository.updateLocation(circle.center.latitude, circle.center.longitude, circle.radius, false) // TODO: Remove this later. Allows for circle changes to transmit to LocationRepository
+                    // LocationRepository.updateLocation(circle.center.latitude, circle.center.longitude, circle.radius, false) // TODO: Remove this later. Allows for circle changes to transmit to LocationRepository
                 }
             }
             override fun onStartTrackingTouch(seekBar: SeekBar?) {
@@ -226,7 +224,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
      */
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
-        Log.d("MapsActivity", "mMap is: $mMap")
         // Move the camera to map_center
         mMap.moveCamera(CameraUpdateFactory.newLatLng(LatLng(map_center_lat, map_center_long)))
         mMap.isTrafficEnabled = false
@@ -253,19 +250,15 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
             val p0 = LatLng(LocationRepository.locationFlow.value.lat, LocationRepository.locationFlow.value.long)
             activeMarker = mMap.addMarker(MarkerOptions().position(p0).title(p0.latitude.toString() + ", " + p0.longitude.toString()))
             activeMarker?.tag = LocationRepository.locationFlow.value.radius // .tag NEEDS to stay of type Double. DO NOT make it an Int!!!
-            Log.d("MapsActivity", "activeMarker?.position is ${p0}")
-            Log.d("MapsActivity", "activeMarker?.tag is ${LocationRepository.locationFlow.value.radius}")
             // Show the circle around the marker
             circle.center = p0
             circle.radius = LocationRepository.locationFlow.value.radius
             circle.isVisible = true
             if (targetAcquired) {
-                Log.d("MapsActivity", "Not showing the circleRadSeekBar")
-                circleRadSeekBar.visibility = View.VISIBLE // TODO: CHANGE THIS TO INVISIBLE WHEN I WANT TO TEST NOTIFICATION UPON USER ENTERING CIRCLE
+                circleRadSeekBar.visibility = View.INVISIBLE // TODO: CHANGE THIS TO INVISIBLE WHEN I WANT TO TEST NOTIFICATION UPON USER ENTERING CIRCLE
                 circleRadSeekBar.progress = LocationRepository.locationFlow.value.radius.toInt()
                 targetAcquiredBtn.text = "Cancel Notification/ Designate a Different Marker"
             } else {
-                Log.d("MapsActivity", "Showing the circleRadSeekBar")
                 circleRadSeekBar.visibility = View.VISIBLE
                 circleRadSeekBar.progress = LocationRepository.locationFlow.value.radius.toInt()
                 targetAcquiredBtn.text = "Notify Me Upon Arrival"
@@ -279,7 +272,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
                 targetAcquiredBtn.setOnClickListener {handleTargetAcquired(targetAcquiredBtn)}
             }
         }
-        Log.d("MapsActivity", "Leaving onMapReady()!")
     }
 
     override fun onMapLongClick(p0: LatLng) {
@@ -462,7 +454,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
             targetAcquired = true
             targetAcquiredBtn.text = "Cancel Notification/ Designate a Different Marker"
             activeMarker!!.tag = circleRadSeekBar.progress.toDouble()
-            // circleRadSeekBar.visibility = View.INVISIBLE // TODO: COMMENT THIS OUT WHEN I WANT TO TEST NOTIFICATION UPON USER ENTERING CIRCLE
+            circleRadSeekBar.visibility = View.INVISIBLE // TODO: CHANGE THIS TO INVISIBLE WHEN I WANT TO TEST NOTIFICATION UPON USER ENTERING CIRCLE
             // Update the LocationRepository with the center and radius of the Circle
             LocationRepository.updateLocation(circle.center.latitude, circle.center.longitude, circle.radius, false)
             // To start tracking, we need to send an Intent to our LocationService
@@ -526,7 +518,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
      * serialization/ deserialization, which makes it slow.
      */
     override fun onSaveInstanceState(outState: Bundle) {
-        Log.d("MapsActivity", "Inside onSaveInstanceState()")
         outState.run {
             putBoolean(TARGET_ACQUIRED, targetAcquired)
             putBoolean(ACTIVE, active)
@@ -535,7 +526,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
         }
         // Always call the superclass so it can save the View hierarchy state (text in an EditText)
         super.onSaveInstanceState(outState)
-        Log.d("MapsActivity", "Leaving onSaveInstanceState()")
     }
 
     /**
@@ -545,7 +535,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
      * This method only gets called if there's a saved state to restore.
      */
     override fun onRestoreInstanceState(savedInstanceState: Bundle) {
-        Log.d("MapsActivity", "Inside onRestoreInstanceState()")
         // Always call the superclass so it can restore the View hierarchy state (text in an EditText)
         super.onRestoreInstanceState(savedInstanceState)
 
@@ -555,14 +544,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
             map_center_lat = getDouble(MAP_CENTER_LAT)
             map_center_long = getDouble(MAP_CENTER_LONG)
         }
-        Log.d("MapsActivity", "targetAcquired is: $targetAcquired")
-        Log.d("MapsActivity", "active is: $active")
-        Log.d("MapsActivity", "Leaving onRestoreInstanceState()")
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        Log.d("MapsActivity", "MapsActivity is being destroyed!")
     }
 
 

@@ -42,7 +42,6 @@ object LocationRepository {
 
     fun updateRingtone(ringtone: Uri) {
         _ringtoneFlow.value = ringtone
-        Log.d("LocationRepository", "Updated ringtone")
     }
 }
 
