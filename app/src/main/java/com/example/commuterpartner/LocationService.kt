@@ -86,42 +86,12 @@ class LocationService: Service() {
                 val updatedNotification = notification.setContentText("Location: ($long, $lat)")
                 notificationManager.notify(FOREGROUND_ID, updatedNotification.build())
                 // Log.d("LocationService", "User is at: ($lat, $long)")
-                // Read the LocationRepository circle center and radius
-                // If this Service needs continuous updates, use the following block of code
-                /*
-                CoroutineScope(Dispatchers.Main).launch {
-                    LocationRepository.locationFlow.collect { circleData ->
-                        // This block gets executed every time the LocationRepository locationFlow gets updated
-                        val circleLat = circleData.lat
-                        val circleLong = circleData.long
-                        val circleRadius = circleData.radius
-                        // val arrived = circleRadius + Random.nextDouble(0.0, 150.0) > 900 // TODO: Calculation to see whether the user is now inside the circle
-                        val arrived = circleRadius >= calculateDistance(lat, long, circleLat, circleLong)
-                        Log.d("LocationService", "Arrived is: $arrived")
-                        Log.d("LocationService", "circleRadius is: $circleRadius")
-                        if (arrived) {
-                            Log.d("LocationService", "User is inside the circle!")
-                            // Generate the notification sound
-                            val uri = LocationRepository.ringtoneFlow.value
-                            if (uri != null) {
-                                playRingtone(uri)
-                            } else {
-                                // Shouldn't really ever occur
-                                stopRingtone()
-                            }
-                            // Send a new notification
-                            val arrivedNotification = notification.setContentText("You have arrived at your destination!")
-                            notificationManager.notify(FOREGROUND_ID, arrivedNotification.build())
-                            // Update the LocationRepository
-                            LocationRepository.updateLocation(lat, long, circleRadius, arrived)
-                            // Stop tracking the user
-                            stop()
-                        }
-                    }
-                }
-                 */
+                // If this Service needs continuous updates, wrap the logic in
+                // CoroutineScope(Dispatchers.Main).launch {
+                //   LocationRepository.locationFlow.collect { circleData -> ___ } }
 
                 // If the Service only needs one-time update, perform the following block of code
+                // Read the LocationRepository circle center and radius
                 val circleData = LocationRepository.locationFlow.value
                 val circleLat = circleData.lat
                 val circleLong = circleData.long
@@ -141,15 +111,17 @@ class LocationService: Service() {
                     val arrivedNotification = notification.setContentText("You have arrived at your destination!")
                     notificationManager.notify(FOREGROUND_ID, arrivedNotification.build())
                     // Update the LocationRepository
-                    LocationRepository.updateLocation(lat, long, circleRadius, arrived)
+                    LocationRepository.updateLocation(lat, long, circleRadius, true)
+                    stop()
                 }
             }
             .launchIn(serviceScope)
     }
 
     private fun stop() {
-        stopForeground(STOP_FOREGROUND_REMOVE) // This or the line below calls onDestroy()
-        stopSelf() // This or the line below calls onDestroy()
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        serviceScope.cancel() // Cancel the locationClient.getLocationUpdates and thereby the tracking
+        // stopSelf() // This line calls onDestroy()
     }
 
     // When the service is destroyed, cancel the serviceScope: CoroutineScope
@@ -163,19 +135,12 @@ class LocationService: Service() {
     }
 
     private fun playRingtone(uri: Uri) {
-        // If the user has already arrived, the ringtone is already playing.
-        // So, don't replay the ringtone. This ensures only one ringtone needs to be stopped
-        // when the ringtone needs to stop playing.
-        if (LocationRepository.locationFlow.value.arrived) return
         ringtone = RingtoneManager.getRingtone(applicationContext, uri)
         ringtone?.play()
     }
 
     private fun stopRingtone() {
-        // If arrived is false, there is no ringtone playing. Therefore, there's nothing to stop
-        if (!LocationRepository.locationFlow.value.arrived) return
         ringtone?.stop()
-        LocationRepository.updateLocation(0.0, 0.0, 0.0, false)
         // Stop tracking the user
         // stop()
     }

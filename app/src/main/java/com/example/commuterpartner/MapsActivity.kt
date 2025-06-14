@@ -106,9 +106,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
                     /**
                      * The code which updates the UI once the user has entered the circle radius
                      */
-                    // Log.d("MapsActivity", "User is at: ($lat, $long)")
                     if (::circle.isInitialized && arrived) { // If the user entered the circle
-                        // Log.d("MapsActivity", "User is now inside the circle!")
                         targetAcquired = false
                         targetAcquiredBtn.text = "Notify Me Upon Arrival"
                         activeMarker = null
@@ -124,14 +122,17 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
                                     action = LocationService.STOP_RINGTONE
                                     startForegroundService(this)
                                 }
+                                /*
                                 Intent(applicationContext, LocationService::class.java).apply {
                                     action = LocationService.ACTION_STOP
                                     startForegroundService(this)
                                 }
+                                 */
                             }
                             .setCancelable(false)
                             .create()
                         arrivedDialog.show()
+                        LocationRepository.updateLocation(LocationRepository.locationFlow.value.lat, LocationRepository.locationFlow.value.long, LocationRepository.locationFlow.value.radius, false)
                         // Do NOT stop the Service from here with an Intent. The app just crashes
                         // Also, do NOT update LocationRepository with arrived=false
                         // This creates an infinite loop because then the locationFlow in
