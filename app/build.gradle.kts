@@ -1,7 +1,12 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.google.android.libraries.mapsplatform.secrets.gradle.plugin)
+    // Add the Google services Gradle plugin
+    id("com.google.gms.google-services")
+    // Add the Crashlytics Gradle plugin
+    id("com.google.firebase.crashlytics")
+    // Update Kotlin to match Firebase's requirements (2.1.0+)
+    alias(libs.plugins.kotlin.android) // version inherited from project-level build.gradle.kts
 }
 
 secrets {
@@ -64,6 +69,7 @@ dependencies {
     implementation(libs.play.services.maps)
     implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.activity)
+    implementation(libs.play.services.measurement.api)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -82,4 +88,13 @@ dependencies {
     implementation ("androidx.activity:activity-ktx:1.7.0")
     implementation ("androidx.fragment:fragment-ktx:1.5.7")
 
+    // Import the Firebase BoM
+    implementation(platform("com.google.firebase:firebase-bom:33.15.0"))
+    // When using the BoM, don't specify versions in Firebase dependencies
+    // Add the dependency for the Analytics library
+    implementation("com.google.firebase:firebase-analytics")
+    // Add the dependencies for any other desired Firebase products
+    implementation("com.google.firebase:firebase-analytics-ktx")
+    // Add the dependency for the Crashlytics library
+    implementation("com.google.firebase:firebase-crashlytics")
 }

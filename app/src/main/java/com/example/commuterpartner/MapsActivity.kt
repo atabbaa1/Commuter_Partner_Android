@@ -50,6 +50,9 @@ import com.google.android.gms.maps.GoogleMap.OnMarkerClickListener
 import com.google.android.gms.maps.model.Circle
 import com.google.android.gms.maps.model.CircleOptions
 import com.google.android.gms.maps.model.Marker
+import com.google.firebase.analytics.FirebaseAnalytics // Needed for the type FirebaseAnalytics
+import com.google.firebase.analytics.ktx.analytics // KTX extension needed for Firebase.analytics
+import com.google.firebase.ktx.Firebase // Needed for the object Firebase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -66,7 +69,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
     private val MAX_RADIUS: Double = 5000.0
     var currLocation: Location ?= null
     val fusedLocationProviderClient: FusedLocationProviderClient ?= null
-    private val DEFAULT_RINGTONE = "Falling Star"
+    private val DEFAULT_RINGTONE = "Silent"
 
     private lateinit var targetAcquiredBtn: Button
     private var activeMarker: Marker ?= null // Declaring activeMarker as type Marker, and initializing to null. It can be assigned a value null later on, too
@@ -79,8 +82,35 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
     private lateinit var settingsBtn: Button
     private lateinit var ringtonePickerLauncher: ActivityResultLauncher<Intent>
 
+    private lateinit var firebaseAnalytics: FirebaseAnalytics
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Obtain the FirebaseAnalytics instance.
+        firebaseAnalytics = Firebase.analytics
+        // firebaseAnalytics = FirebaseAnalytics.getInstance(this) // For non-KTX Firebase
+
+        // In Firebase, log whenever the user selects the targetAcquiredBtn
+        val targetAcquiredBundle = Bundle().apply {
+            putString(FirebaseAnalytics.Param.ITEM_ID, R.id.target_acquired_btn.toString())
+            putString(FirebaseAnalytics.Param.CONTENT_TYPE, "button")
+        }
+        firebaseAnalytics.logEvent(FirebaseAnalytics.Event.SELECT_CONTENT, targetAcquiredBundle)
+        // One can have the above logged into logcat by running the following adb commands
+        // $ adb shell setprop log.tag.FA VERBOSE
+        // $ adb shell setprop log.tag.FA-SVC VERBOSE
+        // $ adb logcat -v time -s FA FA-SVC
+        // For Crashlytics, one can enable debug logging with the App Quality Insight (AQI) window
+        // in Android Studio or with the following:
+        // 1) Before running the app, set the following adb shell flag to DEBUG
+        // $ adb shell setprop log.tag.FirebaseCrashlytics DEBUG
+        // 2) View the logs in your device logs by running the following command
+        // $ adb logcat -s FirebaseCrashlytics
+        // 3) If "Crashlytics report upload complete" or code 204 is in the logcat output, the app
+        // is sending the crashes to Firebase
+        // One can also go to the Crashlytics dashboard in Firebase
+
         binding = ActivityMapsBinding.inflate(layoutInflater)
         // setContentView(R.layout.activity_maps)
         setContentView(binding.root) // binding.root is the layout file (contains widgets like Buttons, TextView, etc.)

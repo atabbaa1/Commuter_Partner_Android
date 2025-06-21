@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "896926057167",
+    "project_id": "third-nature-429016-a3",
+    "storage_bucket": "third-nature-429016-a3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:896926057167:android:f3deb156adb969b5c12dba",
+        "android_client_info": {
+          "package_name": "com.example.commuterpartner"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDLyUFr3mSJytT49jVbggpF17Zune14iLM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
