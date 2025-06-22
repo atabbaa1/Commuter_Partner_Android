@@ -19,6 +19,8 @@ class DefaultLocationClient(
     private val context: Context,
     private val client: FusedLocationProviderClient): LocationClient {
 
+    private lateinit var locationCallback: LocationCallback
+
     @SuppressLint("MissingPermission")
     override fun getLocationUpdates(interval: Long): Flow<Location> {
         return callbackFlow {
@@ -37,7 +39,7 @@ class DefaultLocationClient(
                 .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
                 .build()
             // TODO: Change the .setPriority() for more/ less accurate locations and more/ less frequent updates when running in foreground
-            val locationCallback = object : LocationCallback() {
+            locationCallback = object : LocationCallback() {
                 // The below function is called whenever the FusedLocationProviderClient fetches a new location
                 override fun onLocationResult(p0: LocationResult) {
                     super.onLocationResult(p0)
@@ -54,5 +56,10 @@ class DefaultLocationClient(
                 client.removeLocationUpdates(locationCallback)
             }
         }
+    }
+
+    @SuppressLint("MissingPermission")
+    override fun pauseLocationUpdates() {
+        client.removeLocationUpdates(locationCallback)
     }
 }

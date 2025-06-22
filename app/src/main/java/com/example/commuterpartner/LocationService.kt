@@ -15,6 +15,7 @@ import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.launchIn
@@ -111,7 +112,7 @@ class LocationService: Service() {
                     val arrivedNotification = notification.setContentText("You have arrived at your destination!")
                     notificationManager.notify(FOREGROUND_ID, arrivedNotification.build())
                     // Update the LocationRepository
-                    LocationRepository.updateLocation(lat, long, circleRadius, true)
+                    LocationRepository.updateLocation(circleLat, circleLong, circleRadius, true)
                     stop()
                 }
             }
@@ -120,7 +121,8 @@ class LocationService: Service() {
 
     private fun stop() {
         stopForeground(STOP_FOREGROUND_REMOVE)
-        serviceScope.cancel() // Cancel the locationClient.getLocationUpdates and thereby the tracking
+        locationClient.pauseLocationUpdates()
+        // serviceScope.cancel() // Cancel the locationClient.getLocationUpdates and thereby the tracking
         // stopSelf() // This line calls onDestroy()
     }
 
@@ -131,7 +133,7 @@ class LocationService: Service() {
     override fun onDestroy() {
         // stopRingtone()
         super.onDestroy()
-        serviceScope.cancel()
+        serviceScope.async {  }
     }
 
     private fun playRingtone(uri: Uri) {

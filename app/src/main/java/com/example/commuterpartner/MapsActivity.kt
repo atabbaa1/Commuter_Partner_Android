@@ -164,10 +164,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
                         arrivedDialog.show()
                         LocationRepository.updateLocation(LocationRepository.locationFlow.value.lat, LocationRepository.locationFlow.value.long, LocationRepository.locationFlow.value.radius, false)
                         // Do NOT stop the Service from here with an Intent. The app just crashes
-                        // Also, do NOT update LocationRepository with arrived=false
-                        // This creates an infinite loop because then the locationFlow in
-                        // LocationService will trigger and update LocationRepository with
-                        // arrived=true, which triggers this locationFlow with arrived=false, ...
                     }
                 }
             }
