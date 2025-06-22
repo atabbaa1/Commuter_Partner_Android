@@ -1,6 +1,6 @@
 // This file contains a helper function used in DefaultLocationClient.kt
 
-package com.example.commuterpartner
+package com.abdulrahmantabbaa.commuterpartner
 
 import android.Manifest
 import android.content.Context

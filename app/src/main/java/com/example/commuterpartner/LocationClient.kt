@@ -1,4 +1,4 @@
-package com.example.commuterpartner
+package com.abdulrahmantabbaa.commuterpartner
 
 import android.location.Location
 import kotlinx.coroutines.flow.Flow

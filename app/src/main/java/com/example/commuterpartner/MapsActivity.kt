@@ -1,4 +1,4 @@
-package com.example.commuterpartner
+package com.abdulrahmantabbaa.commuterpartner
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
@@ -9,7 +9,7 @@ import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
-import com.example.commuterpartner.databinding.ActivityMapsBinding
+import com.abdulrahmantabbaa.commuterpartner.databinding.ActivityMapsBinding
 import com.google.android.gms.maps.model.MapColorScheme
 import com.google.android.gms.maps.GoogleMap.OnMyLocationButtonClickListener
 

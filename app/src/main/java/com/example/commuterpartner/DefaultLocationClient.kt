@@ -1,4 +1,4 @@
-package com.example.commuterpartner
+package com.abdulrahmantabbaa.commuterpartner
 
 import android.annotation.SuppressLint
 import android.content.Context

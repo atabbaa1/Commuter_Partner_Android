@@ -25,11 +25,11 @@ secrets {
 }
 
 android {
-    namespace = "com.example.commuterpartner"
+    namespace = "com.abdulrahmantabbaa.commuterpartner"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.example.commuterpartner"
+        applicationId = "com.abdulrahmantabbaa.commuterpartner"
         minSdk = 26
         targetSdk = 35
         versionCode = 1

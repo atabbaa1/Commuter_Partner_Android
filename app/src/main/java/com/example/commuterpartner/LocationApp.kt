@@ -1,6 +1,6 @@
 // This is the Notification Channel, which allows for the sending of notifications
 
-package com.example.commuterpartner
+package com.abdulrahmantabbaa.commuterpartner
 
 import android.app.Application
 import android.app.NotificationChannel

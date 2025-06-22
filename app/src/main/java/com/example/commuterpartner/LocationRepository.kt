@@ -13,7 +13,7 @@
 // A ViewModel was unsuitable because LocationService and MapsActivity are on separate lifecycles
 // Therefore, LocationService was updating this ViewModel, but MapsActivity wasn't reading the changes.
 
-package com.example.commuterpartner
+package com.abdulrahmantabbaa.commuterpartner
 
 import android.net.Uri
 import android.util.Log
