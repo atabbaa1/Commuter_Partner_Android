@@ -202,14 +202,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
             }
         }
 
-        // Requesting permission to send notifications
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // Android 13+
-            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS)
-                != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this,
-                    arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1001)
-            }
-        }
+        // Requesting notification permission here will cancel the request for location permission.
+        // Multiple requestPermissions() calls in succession causes Android's permission system to
+        // cancel previous requests
     }
 
     /**
@@ -338,7 +333,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
                 Manifest.permission.ACCESS_COARSE_LOCATION
             )
         ) {
-            showPermissionRationaleDialog(this, LOCATION_PERMISSION_REQUEST_CODE) {
+            showPermissionRationaleDialog(this, "Location", LOCATION_PERMISSION_REQUEST_CODE) {
                 // Trigger the permission request when the user agrees
                 requestPermissions(
                     arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION),
@@ -366,12 +361,13 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
     // This function gets executed when a permission rationale dialog should be shown before requesting permission
     private fun showPermissionRationaleDialog(
         context: Context,
+        permissionName: String,
         requestCode: Int,
         onPositiveAction: () -> Unit
     ) {
         val dialog = AlertDialog.Builder(context)
             .setTitle("Permission Required")
-            .setMessage("Location permission is needed for this feature to work. Please grant it.")
+            .setMessage("$permissionName permission is needed for this feature to work. Please grant it.")
             .setPositiveButton("OK") { _, _ ->
                 onPositiveAction()
             }
@@ -584,7 +580,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
          * @see .onRequestPermissionsResult
          */
         private const val LOCATION_PERMISSION_REQUEST_CODE = 1
-        private const val RINGTONE_PERMISSION_REQUEST_CODE = 3
+        private const val NOTIFICATION_PERMISSION_REQUEST_CODE = 1001
         private const val PERMISSION_DENIED = "PERMISSION_DENIED"
         private const val TARGET_ACQUIRED = "TARGET_ACQUIRED"
         private const val ACTIVE = "ACTIVE"
