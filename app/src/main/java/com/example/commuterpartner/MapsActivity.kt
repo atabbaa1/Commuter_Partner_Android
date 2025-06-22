@@ -269,10 +269,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
         // If there was an activeMarker before UI State change, restore it
         if (active) {
             enableMyLocation()
-            if (mMap.isMyLocationEnabled) {
-                targetAcquiredBtn = findViewById<Button>(R.id.target_acquired_btn)
-                targetAcquiredBtn.setOnClickListener {handleTargetAcquired(targetAcquiredBtn)}
-            }
+            targetAcquiredBtn = findViewById<Button>(R.id.target_acquired_btn)
+            targetAcquiredBtn.setOnClickListener {handleTargetAcquired(targetAcquiredBtn)}
             // Make a marker
             val p0 = LatLng(LocationRepository.locationFlow.value.lat, LocationRepository.locationFlow.value.long)
             activeMarker = mMap.addMarker(MarkerOptions().position(p0).title(p0.latitude.toString() + ", " + p0.longitude.toString()))
@@ -293,11 +291,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
         } else {
             // Request permission location from the user
             enableMyLocation()
-            if (mMap.isMyLocationEnabled) {
-                targetAcquiredBtn = findViewById<Button>(R.id.target_acquired_btn)
-                targetAcquiredBtn.text = "Notify Me Upon Arrival"
-                targetAcquiredBtn.setOnClickListener {handleTargetAcquired(targetAcquiredBtn)}
-            }
+            targetAcquiredBtn = findViewById<Button>(R.id.target_acquired_btn)
+            targetAcquiredBtn.text = "Notify Me Upon Arrival"
+            targetAcquiredBtn.setOnClickListener {handleTargetAcquired(targetAcquiredBtn)}
         }
     }
 
@@ -438,7 +434,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, OnRequestPermissio
     }
 
     private fun handleTargetAcquired (targetAcquiredBtn: Button) {
-        if (!active || activeMarker == null) {
+        if (!mMap.isMyLocationEnabled) {
+            enableMyLocation()
+        } else if (!active || activeMarker == null) {
             val noDestinationDialog = AlertDialog.Builder(this)
                 .setTitle("No Designated Destination")
                 .setMessage("You need to select a marker as a destination to be notified upon arrival.")
